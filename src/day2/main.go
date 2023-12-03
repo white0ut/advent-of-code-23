@@ -13,7 +13,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("PartOne: %d\n", partOne(string(contents)))
+	fmt.Printf("PartTwo: %d\n", partTwo(string(contents)))
 }
 
 type Color string
@@ -42,6 +42,7 @@ const (
 type game struct {
 	limits   map[Color]int
 	currents map[Color]int
+	minimums map[Color]int
 }
 
 // isPossible checks if the current draws are possible given the loaded bag.
@@ -58,7 +59,58 @@ func (g *game) isPossible(color Color, drawCount int) bool {
 }
 
 func (g *game) reset() {
+	if g.currents[red] > g.minimums[red] {
+		g.minimums[red] = g.currents[red]
+	}
+	if g.currents[green] > g.minimums[green] {
+		g.minimums[green] = g.currents[green]
+	}
+	if g.currents[blue] > g.minimums[blue] {
+		g.minimums[blue] = g.currents[blue]
+	}
 	g.currents = map[Color]int{}
+}
+
+func partTwo(input string) int {
+
+	powers := []int{}
+	for _, line := range strings.Split(input, "\n") {
+		g := &game{
+			limits:   map[Color]int{blue: 14, green: 13, red: 12},
+			currents: map[Color]int{},
+			minimums: map[Color]int{},
+		}
+
+		if len(line) == 0 {
+			continue
+		}
+		lineParts := strings.Split(line, ":")
+		_ = parseGameId(lineParts[0])
+
+		//  Parse out the game cubes
+
+		hands := strings.Split(strings.TrimSpace(lineParts[1]), ";")
+		for _, hand := range hands {
+			diceGroups := strings.Split(strings.TrimSpace(hand), ",")
+			for _, diceCount := range diceGroups {
+				diceCount := strings.TrimSpace(diceCount)
+				diceCountParts := strings.Split(diceCount, " ")
+				count, err := strconv.Atoi(diceCountParts[0])
+				if err != nil {
+					log.Fatalf("failed to parse dice count: %v", err)
+				}
+				col := diceCountParts[1]
+				g.isPossible(parseColor(col), count)
+			}
+
+			g.reset()
+		}
+		fmt.Println(g.minimums)
+		power := g.minimums[red] * g.minimums[green] * g.minimums[blue]
+		powers = append(powers, power)
+	}
+
+	return sum(powers)
 }
 
 func partOne(input string) int {
@@ -100,9 +152,13 @@ func partOne(input string) int {
 			validGameIDs = append(validGameIDs, gameID)
 		}
 	}
+	return sum(validGameIDs)
+}
+
+func sum(in []int) int {
 	ans := 0
-	for _, id := range validGameIDs {
-		ans = ans + id
+	for _, i := range in {
+		ans = ans + i
 	}
 	return ans
 }
